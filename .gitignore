@@ -5,5 +5,5 @@ modules.order
 *.cmd
 *.c~
 *.o
+*.h~
 *.ko
-Rakefile
