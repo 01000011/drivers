@@ -1,3 +1,5 @@
+modules.builtin
+modules.order
 *.mod.c
 *.mod.o
 *.cmd
