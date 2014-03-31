@@ -6,3 +6,4 @@ modules.order
 *.c~
 *.o
 *.ko
+Rakefile
