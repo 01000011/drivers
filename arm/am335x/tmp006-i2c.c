@@ -39,13 +39,15 @@ static int tmp006_i2c_remove(struct i2c_client *client)
 	return tmp006_remove(&client->dev);
 }
 
-static const struct i2c_device_id tmp006_i2c_device_id[] = {
+static const struct i2c_device_id tmp006_i2c_device_id[] = 
+{
 	{ TMP006_NAME, 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tmp006_i2c_device_id);
 
-static struct i2c_driver tmp006_i2c_driver = {
+static struct i2c_driver tmp006_i2c_driver = 
+{
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= TMP006_NAME,
