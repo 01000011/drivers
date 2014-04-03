@@ -2,11 +2,23 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include "tmp006.h"
+
 #define VOBJECT_REG         0x00
 #define TAMBIENT_REG        0x01
 #define CONFIGURATION_REG   0x02
 #define MANUFACTURER_ID_REG 0xFE
-#define DEVICE_ID_REG   0xFF
+#define DEVICE_ID_REG       0xFF
+
+#define RESET          0x8000
+#define POWER_DOWN     0x0000
+#define POWER_UP       0x7000
+#define TMP006_CR_4         0x0000
+#define TMP006_CR_2         0x0200
+#define TMP006_CR_1         0x0400
+#define TMP006_CR_0_5       0x0600
+#define TMP006_CR_0_25 0x0800
+#define ENABLE         0x0100
+#define DATA_READY     0x0080
 static struct tmp006_config_data
 {
 	u16 v_object;
@@ -25,14 +37,23 @@ static struct tmp006
 	u16 device_id;
 };
 
-static int init_device(struct tmp006 *dev)
+static s32 reset_device(struct device *dev)
 {
-	return 0;
+	struct tmp006 *t6 = dev_get_drvdata(dev);
+	return regmap_write(t6->regmap, CONFIGURATION_REG, RESET);
 }
+
+static int init_device(struct device *dev)
+{
+	struct tmp006 *t6 = dev_get_drvdata(dev);
+	return regmap_write(t6->regmap, CONFIGURATION_REG, POWER_UP | ENABLE);
+}
+
 static int read_temperature(struct tmp006 *dev, int *temperature)
 {
 	return 0;
 }
+
 static ssize_t get_temperature(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	int temperature;
@@ -86,6 +107,8 @@ EXPORT_SYMBOL_GPL(tmp006_detect);
 
 int tmp006_probe(struct device *dev, struct regmap *regmap)
 {
+	int val;
+	s32 status;
 	struct tmp006 *data;
 	int err;
 	printk(KERN_INFO "driver_probe");	
@@ -100,6 +123,30 @@ int tmp006_probe(struct device *dev, struct regmap *regmap)
 	dev_set_drvdata(dev, data);
 	data->dev = dev;
 	data->regmap = regmap;
+
+	status = reset_device(data->dev);
+	if(status < 0)
+	{
+		dev_err(data->dev, "%s:  could not reset device\n", TMP006_NAME);
+		//return status;	
+	}
+
+	status = init_device(data->dev);
+	if(status < 0)
+	{
+		dev_err(data->dev, "%s:  could not initiate device\n", TMP006_NAME);
+		return status;	
+	}
+	
+	status = regmap_read(data->regmap, DEVICE_ID_REG, &val);
+	if(status < 0)
+	{
+		dev_err(data->dev, "%s:  could not read device\n", TMP006_NAME);
+		return status;	
+	}
+	
+	dev_info(data->dev, "Successfully initialized %u!\n", val);
+	return 0;
 
 	err = init_device(data);
 	if (err < 0)
@@ -140,6 +187,12 @@ int tmp006_remove(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tmp006_remove);
+
+struct regmap_config tmp006_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 16
+};
+EXPORT_SYMBOL_GPL(tmp006_regmap_config);
 /*static int driver_remove(struct i2c_client *client)
 {
 	printk(KERN_INFO "driver_remove");

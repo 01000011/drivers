@@ -3,17 +3,24 @@
 #include <linux/err.h>
 #include "tmp006.h"
 
-#define TMP006_I2C_ADDRESS	0x40
+#define ADR1_0_ADR0_0  		0x40
+#define ADR1_0_ADR0_1		0x41
+#define ADR1_0_ADR0_SDA		0x42
+#define ADR1_0_ADR0_SCL		0x43
+#define ADR1_1_ADR0_0		0x44
+#define	ADR1_1_ADR0_1		0x45
+#define	ADR1_1_ADR0_SDA		0x46
+#define ADR1_1_ADR0_SCL		0x47
 
 static const unsigned short tmp006_address_list[] = 
 { 
-	TMP006_I2C_ADDRESS,
+	ADR1_0_ADR0_0,
 	I2C_CLIENT_END 
 };
 
 static int tmp006_i2c_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
-	if (client->addr != TMP006_I2C_ADDRESS)
+	if (client->addr != ADR1_0_ADR0_0)
 	{
 		return -ENODEV;
 	}
@@ -60,8 +67,22 @@ static struct i2c_driver tmp006_i2c_driver =
 	.address_list	= tmp006_address_list
 };
 
+#ifdef _I2C_DRIVER
 module_i2c_driver(tmp006_i2c_driver);
+#else
+static int __init init_tmp006(void)
+{
+	return i2c_add_driver(&tmp006_i2c_driver);
+}
 
+static void __exit exit_tmp006(void)
+{
+	i2c_del_driver(&tmp006_i2c_driver);
+}
+
+module_init(init_tmp006);
+module_exit(exit_tmp006);
+#endif
 MODULE_AUTHOR("Courtney Harleston <courtney.harleston@gmail.com>");
 MODULE_DESCRIPTION("TMP006 I2C bus driver");
 MODULE_LICENSE("GPL");

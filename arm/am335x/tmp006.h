@@ -3,7 +3,7 @@
 
 #include <linux/regmap.h>
 
-#define TMP006_NAME "tmp006-driver"
+#define TMP006_NAME "tmp006"
 
 extern struct regmap_config tmp006_regmap_config;
 
