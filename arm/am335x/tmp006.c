@@ -33,20 +33,19 @@ static struct tmp006
 	struct	device *dev;
 	struct  regmap *regmap;
 	struct	mutex lock;
-	struct  tmp006_config_data config_data;
-	u16 device_id;
+	//struct  tmp006_config_data config_data;
 };
 
-static s32 reset_device(struct device *dev)
+static int read (struct device *dev, unsigned int reg, unsigned int *val)
 {
 	struct tmp006 *t6 = dev_get_drvdata(dev);
-	return regmap_write(t6->regmap, CONFIGURATION_REG, RESET);
+	return regmap_read(t6->regmap, DEVICE_ID_REG, val);
 }
 
-static int init_device(struct device *dev)
+static int write(struct device *dev, unsigned int reg, unsigned int val)
 {
 	struct tmp006 *t6 = dev_get_drvdata(dev);
-	return regmap_write(t6->regmap, CONFIGURATION_REG, POWER_UP | ENABLE);
+	return regmap_write(t6->regmap, reg, val);
 }
 
 static int read_temperature(struct tmp006 *dev, int *temperature)
@@ -91,8 +90,8 @@ int tmp006_detect(struct device *dev)
 	struct tmp006 *data = dev_get_drvdata(dev);
 	unsigned int id;
 	int result;
-
-	result = regmap_read(data->regmap, DEVICE_ID_REG, &id);
+	printk(KERN_INFO "tmp006_detect");
+	/*result = regmap_read(data->regmap, DEVICE_ID_REG, &id);
 	if (result < 0)
 	{
 		return result;
@@ -100,7 +99,7 @@ int tmp006_detect(struct device *dev)
 	if (id != data->device_id)
 	{
 		return -ENODEV;
-	}
+	}*/
 	return 0;
 }
 EXPORT_SYMBOL_GPL(tmp006_detect);
@@ -108,71 +107,49 @@ EXPORT_SYMBOL_GPL(tmp006_detect);
 int tmp006_probe(struct device *dev, struct regmap *regmap)
 {
 	int val;
-	s32 status;
+	int status;
 	struct tmp006 *data;
-	int err;
 	printk(KERN_INFO "driver_probe");	
 
-	data = kzalloc(sizeof(struct tmp006), GFP_KERNEL);
-	if (!data) 
+	data = devm_kzalloc(dev, sizeof(struct tmp006), GFP_KERNEL);
+	if (data == NULL) 
 	{
-		err = -ENOMEM;
+		dev_err(dev, "Can not allocate memory\n");
+		status = -ENOMEM;
 		goto exit;
 	}
 
 	dev_set_drvdata(dev, data);
 	data->dev = dev;
 	data->regmap = regmap;
-
-	status = reset_device(data->dev);
+	
+	status = write(data->dev, CONFIGURATION_REG, POWER_UP);
 	if(status < 0)
 	{
-		dev_err(data->dev, "%s:  could not reset device\n", TMP006_NAME);
-		//return status;	
+		dev_err(data->dev, "could not reset device\n");
+		goto exit_free;	
 	}
 
-	status = init_device(data->dev);
+	status = write(data->dev, CONFIGURATION_REG, POWER_UP | ENABLE);
 	if(status < 0)
 	{
-		dev_err(data->dev, "%s:  could not initiate device\n", TMP006_NAME);
-		return status;	
+		dev_err(data->dev, "could not initiate device\n");
+		goto exit_free;	
 	}
 	
-	status = regmap_read(data->regmap, DEVICE_ID_REG, &val);
+	status = read(data->dev, DEVICE_ID_REG, &val);
 	if(status < 0)
 	{
-		dev_err(data->dev, "%s:  could not read device\n", TMP006_NAME);
-		return status;	
+		dev_err(data->dev, "could not read device\n");
+		goto exit_free;
 	}
 	
-	dev_info(data->dev, "Successfully initialized %u!\n", val);
+	dev_info(data->dev, "Successfully initialized!\n");
 	return 0;
-
-	err = init_device(data);
-	if (err < 0)
-	{
-		goto exit_free;
-	}
-
-	err = tmp006_detect(dev);
-	if (err < 0) {
-		dev_err(dev, "%s: chip_id failed!\n", TMP006_NAME);
-		goto exit_free;
-	}
-
-	/* Register sysfs hooks */
-	err = sysfs_create_group(&dev->kobj, &tmp006_attr_group);
-	if (err)
-		goto exit_free;
-
-	dev_info(dev, "Successfully initialized %s!\n", TMP006_NAME);
-
-	return 0;
-
 exit_free:
-	kfree(data);
+	//kfree(data);
 exit:
-	return err;
+	return status;
 }
 
 EXPORT_SYMBOL_GPL(tmp006_probe);
@@ -193,23 +170,4 @@ struct regmap_config tmp006_regmap_config = {
 	.val_bits = 16
 };
 EXPORT_SYMBOL_GPL(tmp006_regmap_config);
-/*static int driver_remove(struct i2c_client *client)
-{
-	printk(KERN_INFO "driver_remove");
-	return 0;
-}
-static int __init _driver_init(void)
-{
-	printk(KERN_INFO "driver_init");
-	return i2c_add_driver(&tmp006_driver);
-}
-
-static void __exit _driver_exit(void)
-{
-	printk(KERN_INFO "driver_exit");
-	i2c_del_driver(&tmp006_driver);
-}*/
 MODULE_LICENSE("GPL");
-
-/*module_init(_driver_init);
-module_exit(_driver_exit);*/
